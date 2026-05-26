@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gmail AI Summarizer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root { --primary-color: #4a90e2; }
+        body { background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .main-container { max-width: 900px; margin: 40px auto; }
+        
+        /* Фиксированная высота для списка, чтобы страница не растягивалась */
+        #results { 
+            max-height: 70vh; 
+            overflow-y: auto; 
+            padding-right: 10px;
+        }
+        
+        .mail-card {
+            border: none;
+            border-left: 5px solid var(--primary-color);
+            transition: transform 0.2s;
+            margin-bottom: 10px;
+        }
+        .mail-card:hover { transform: translateX(5px); }
+        
+        .summary-badge { background-color: #e7f3ff; color: #007bff; font-weight: 600; }
+        
+        #loading { display: none; margin: 20px 0; }
+        
+        /* Кастомный скроллбар */
+        #results::-webkit-scrollbar { width: 6px; }
+        #results::-webkit-scrollbar-thumb { background: #ccc; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container main-container">
+    <div class="card shadow-sm p-4 mb-4">
+        <h2 class="text-center mb-4">📧 Gmail AI Аналитик</h2>
+        
+        <div class="row g-3 align-items-center justify-content-center">
+            <div class="col-auto">
+                <label for="mailCount" class="col-form-label">Загрузить писем:</label>
+            </div>
+            <div class="col-auto">
+                <input type="number" id="mailCount" class="form-control" value="10" min="1" max="50">
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-primary px-4" onclick="startProcessing()">Начать анализ</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="loading" class="text-center">
+        <div class="spinner-grow text-primary" role="status"></div>
+        <p class="mt-2 text-muted">Обработка писем...</p>
+    </div>
+
+    <div id="results" class="accordion shadow-sm"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+async function startProcessing() {
+    const count = document.getElementById('mailCount').value;
+    const resultsDiv = document.getElementById('results');
+    const loader = document.getElementById('loading');
+    
+    resultsDiv.innerHTML = '';
+    loader.style.display = 'block';
+
+    const formData = new FormData();
+    formData.append('count', count);
+
+    try {
+        const response = await fetch('/process', { method: 'POST', body: formData });
+        const result = await response.json();
+
+        loader.style.display = 'none';
+
+        if (result.status === 'success') {
+            if (result.data.length === 0) {
+                resultsDiv.innerHTML = '<div class="alert alert-info">Писем не найдено.</div>';
+                return;
+            }
+
+            result.data.forEach((mail, index) => {
+                // Создаем элемент аккордеона для каждого письма
+                const item = `
+                    <div class="accordion-item mail-card">
+                        <h2 class="accordion-header" id="heading${index}">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${index}">
+                                <div class="d-flex justify-content-between w-100 me-3">
+                                    <span class="text-truncate" style="max-width: 80%;">
+                                        <strong>${index + 1}.</strong> ${mail.subject}
+                                    </span>
+                                    <small class="text-muted font-monospace">${mail.id.substring(0, 8)}...</small>
+                                </div>
+                            </button>
+                        </h2>
+                        <div id="collapse${index}" class="accordion-collapse collapse" data-bs-parent="#results">
+                            <div class="accordion-body">
+                                <div class="p-2 rounded summary-badge mb-2">Краткий пересказ:</div>
+                                <p class="mb-0 text-dark">${mail.summary}</p>
+                                <hr>
+                                <small class="text-muted">Полный ID: ${mail.id}</small>
+                            </div>
+                        </div>
+                    </div>`;
+                resultsDiv.innerHTML += item;
+            });
+        } else {
+            alert("Ошибка сервера: " + result.message);
+        }
+    } catch (e) {
+        loader.style.display = 'none';
+        console.error(e);
+        alert("Ошибка сети или сервера.");
+    }
+}
+</script>
+
+</body>
+</html>

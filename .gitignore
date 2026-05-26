@@ -4,5 +4,4 @@ __pycache__/
 token.json
 configs.py
 resourses/
-templates/
 .DS_Store
